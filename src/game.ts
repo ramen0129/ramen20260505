@@ -24,8 +24,8 @@ let QNA: {question:string, answer:string}[] = [];
 let started = false;
 let sfxVolume = 0.7;
 let difficulty: 'easy'|'normal'|'hard' = 'normal';
-const ASSET_BGM = '/assets/bgm-loop.mp3';
-const ASSET_SFX_HIT = '/assets/sfx-hit.mp3';
+const ASSET_BGM = '/assets/bgm-loop.wav';
+const ASSET_SFX_HIT = '/assets/sfx-hit.wav';
 
 function applyDifficulty(){
   if(difficulty === 'easy') spawnInterval = 2000;
