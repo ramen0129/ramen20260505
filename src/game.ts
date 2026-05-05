@@ -1,4 +1,5 @@
 import { normalizeRomaji } from './romaji';
+import { playBgm, stopBgm, playSfx, preloadAssets } from './audio';
 
 // Core with input modes: direct typing and question->answer (QA).
 
@@ -19,6 +20,10 @@ let lastSpawn = 0;
 let mode: 'direct'|'qa' = 'direct';
 let WORDS: string[] = ['edo','meiji','tokyo','osaka','sapporo','chiri','rekishi','kokkai','kokka','sensu'];
 let QNA: {question:string, answer:string}[] = [];
+
+let started = false;
+const ASSET_BGM = '/assets/bgm-loop.mp3';
+const ASSET_SFX_HIT = '/assets/sfx-hit.mp3';
 
 async function loadWordset(){
   try{
@@ -42,10 +47,28 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(canvas);
   canvas.width = cw; canvas.height = ch;
   ctx = canvas.getContext('2d');
-  loadWordset();
-  requestAnimationFrame(loop);
+
+  // preload common assets (non-blocking)
+  preloadAssets([ASSET_BGM, ASSET_SFX_HIT]).catch(()=>{});
+
+  // show start screen until user interacts
+  draw();
+
   window.addEventListener('keydown', onKey);
+  window.addEventListener('click', () => { if(!started) startGame(); });
+  window.addEventListener('touchstart', () => { if(!started) startGame(); }, {passive:true});
 });
+
+function startGame(){
+  if(started) return;
+  started = true;
+  // user gesture happened, start BGM if available
+  playBgm(ASSET_BGM).catch(()=>{});
+
+  loadWordset();
+  lastTs = performance.now();
+  requestAnimationFrame(loop);
+}
 
 function spawnEnemy(){
   if(mode === 'direct' || QNA.length === 0){
@@ -78,7 +101,7 @@ function loop(ts?: number){
 
   update(dt);
   draw();
-  requestAnimationFrame(loop);
+  if(started) requestAnimationFrame(loop);
 }
 
 function update(dt:number){
@@ -99,6 +122,8 @@ function update(dt:number){
       combo = 0;
       multiplier = 1;
       lives -= 1;
+      // play sfx for miss
+      try{ playSfx(ASSET_SFX_HIT, 0.5); }catch(e){}
     }
   });
   // remove destroyed and offscreen
@@ -111,6 +136,16 @@ function draw(){
   // background
   c.fillStyle = '#0b1020';
   c.fillRect(0,0,cw,ch);
+
+  if(!started){
+    // start screen
+    c.fillStyle = '#fff';
+    c.font = '36px sans-serif';
+    c.fillText('迫り来るラーメン: タイピングゲーム', cw/2 - 300, ch/2 - 20);
+    c.font = '18px sans-serif';
+    c.fillText('Press any key or click/tap to start', cw/2 - 160, ch/2 + 20);
+    return;
+  }
 
   // HUD
   c.fillStyle = '#fff';
@@ -145,11 +180,18 @@ function draw(){
     c.fillText('Game Over', cw/2 - 120, ch/2);
     c.font = '20px sans-serif';
     c.fillText(`Final Score: ${score}`, cw/2 - 70, ch/2 + 40);
+
+    // stop bgm on game over
+    try{ stopBgm(); }catch(e){}
   }
 }
 
 function onKey(ev: KeyboardEvent){
   const k = ev.key;
+  if(!started){
+    // start on first key
+    startGame();
+  }
   if(k === 'Tab'){
     ev.preventDefault();
     mode = mode === 'direct' ? 'qa' : 'direct';
@@ -190,6 +232,7 @@ function checkInput(){
         multiplier = Math.min(5, 1 + Math.floor(combo / 5));
         score += 150 * multiplier;
         currentInput = '';
+        try{ playSfx(ASSET_SFX_HIT, 0.7); }catch(e){}
         return;
       }
       return;
@@ -202,6 +245,7 @@ function checkInput(){
         multiplier = Math.min(5, 1 + Math.floor(combo / 5));
         score += 100 * multiplier;
         currentInput = '';
+        try{ playSfx(ASSET_SFX_HIT, 0.7); }catch(e){}
         return;
       }
       return;
