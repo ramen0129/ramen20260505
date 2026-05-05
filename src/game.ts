@@ -1,5 +1,5 @@
 import { normalizeRomaji } from './romaji';
-import { playBgm, stopBgm, playSfx, preloadAssets } from './audio';
+import { playBgm, stopBgm, playSfx, preloadAssets, setBgmVolume } from './audio';
 
 // Core with input modes: direct typing and question->answer (QA).
 
@@ -22,8 +22,16 @@ let WORDS: string[] = ['edo','meiji','tokyo','osaka','sapporo','chiri','rekishi'
 let QNA: {question:string, answer:string}[] = [];
 
 let started = false;
+let sfxVolume = 0.7;
+let difficulty: 'easy'|'normal'|'hard' = 'normal';
 const ASSET_BGM = '/assets/bgm-loop.mp3';
 const ASSET_SFX_HIT = '/assets/sfx-hit.mp3';
+
+function applyDifficulty(){
+  if(difficulty === 'easy') spawnInterval = 2000;
+  else if(difficulty === 'normal') spawnInterval = 1400;
+  else spawnInterval = 900;
+}
 
 async function loadWordset(){
   try{
@@ -47,6 +55,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(canvas);
   canvas.width = cw; canvas.height = ch;
   ctx = canvas.getContext('2d');
+
+  // create UI overlays
+  try{ createUI(); }catch(e){}
 
   // preload common assets (non-blocking)
   preloadAssets([ASSET_BGM, ASSET_SFX_HIT]).catch(()=>{});
@@ -184,6 +195,74 @@ function draw(){
     // stop bgm on game over
     try{ stopBgm(); }catch(e){}
   }
+}
+
+function createUI(){
+  const container = document.createElement('div');
+  container.id = 'game-ui';
+  container.style.position = 'fixed';
+  container.style.right = '12px';
+  container.style.top = '12px';
+  container.style.background = 'rgba(10,12,20,0.6)';
+  container.style.color = '#fff';
+  container.style.padding = '8px';
+  container.style.borderRadius = '8px';
+  container.style.zIndex = '1000';
+  container.style.fontFamily = 'sans-serif';
+  container.style.fontSize = '13px';
+
+  // BGM volume
+  const bgmLabel = document.createElement('div');
+  bgmLabel.textContent = 'BGM Volume';
+  const bgmRange = document.createElement('input');
+  bgmRange.type = 'range'; bgmRange.min = '0'; bgmRange.max = '1'; bgmRange.step = '0.01'; bgmRange.value = '0.2';
+  bgmRange.addEventListener('input', () => { setBgmVolume(parseFloat(bgmRange.value)); });
+  container.appendChild(bgmLabel);
+  container.appendChild(bgmRange);
+
+  // SFX volume
+  const sfxLabel = document.createElement('div');
+  sfxLabel.textContent = 'SFX Volume';
+  const sfxRange = document.createElement('input');
+  sfxRange.type = 'range'; sfxRange.min = '0'; sfxRange.max = '1'; sfxRange.step = '0.01'; sfxRange.value = String(sfxVolume);
+  sfxRange.addEventListener('input', () => { sfxVolume = parseFloat(sfxRange.value); });
+  container.appendChild(sfxLabel);
+  container.appendChild(sfxRange);
+
+  // Difficulty
+  const diffLabel = document.createElement('div');
+  diffLabel.textContent = 'Difficulty';
+  const diffSelect = document.createElement('select');
+  ['easy','normal','hard'].forEach(d => { const o = document.createElement('option'); o.value = d; o.text = d; diffSelect.appendChild(o); });
+  diffSelect.value = difficulty;
+  diffSelect.addEventListener('change', () => { difficulty = diffSelect.value as any; applyDifficulty(); });
+  container.appendChild(diffLabel);
+  container.appendChild(diffSelect);
+
+  // Retry button
+  const retryBtn = document.createElement('button');
+  retryBtn.textContent = 'Retry';
+  retryBtn.style.display = 'block';
+  retryBtn.style.marginTop = '8px';
+  retryBtn.addEventListener('click', () => { resetGame(); startGame(); });
+  container.appendChild(retryBtn);
+
+  document.body.appendChild(container);
+}
+
+function resetGame(){
+  try{ stopBgm(); }catch(e){}
+  started = false;
+  enemies = [];
+  score = 0;
+  lives = 5;
+  combo = 0;
+  multiplier = 1;
+  currentInput = '';
+  lastSpawn = 0;
+  nextId = 1;
+  applyDifficulty();
+  draw();
 }
 
 function onKey(ev: KeyboardEvent){
