@@ -82,3 +82,12 @@ npm run dev
 ---
 
 必要なら、この README をさらに詳しく整備（日本語の開発ガイド、よくあるトラブルシュートの節追加、コマンドやスクリーンショットの追加など）します。希望があれば教えてください。
+
+---
+
+Playable demo: https://ramen0129.github.io/ramen20260505/ (enable Pages for gh-pages branch if not active)
+
+Audio:
+- Placeholder WAV assets added: public/assets/bgm-loop.wav, public/assets/sfx-hit.wav
+- To replace: overwrite those files and run `npm run build` then push gh-pages branch.
+
